@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@media print {
+  /* Hide UI elements that aren't needed on paper */
+  nav, 
+  button, 
+  .print-hidden, 
+  input, 
+  select,
+  footer {
+    display: none !important;
+  }
+
+  /* Reset the background and colors for printers */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Remove the blurred background image on print */
+  .fixed.inset-0 {
+    display: none !important;
+  }
+
+  /* Ensure the main container expands to full width */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+}
