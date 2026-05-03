@@ -53,4 +53,19 @@ body {
     padding: 0 !important;
     width: 100% !important;
   }
+
+  /* Add this to your global CSS or a <style> tag */
+input::placeholder, textarea::placeholder {
+  color: #64748b !important; /* Darker gray for placeholders */
+  opacity: 1;
+}
+
+input, select, textarea {
+  color: #000000 !important; /* Force text to be pure black */
+}
+
+label {
+  color: #000000 !important; /* Force labels to be pure black */
+  font-weight: 900 !important;
+}
 }
