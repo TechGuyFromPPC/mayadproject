@@ -12,10 +12,20 @@ export default function TransfersPage() {
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<'van' | 'bike' | 'car' | 'ferry'>('van');
   
-  const [guestName, setGuestName] = useState('');
+  // Manifest / Guest Details State
+  const [formData, setFormData] = useState({
+    name: '',
+    age: '',
+    gender: 'MALE',
+    nationality: '',
+    country: '',
+    contact: '',
+    hotel: '',
+    dateStart: '',
+    dateEnd: ''
+  });
+
   const [agencyName, setAgencyName] = useState(''); 
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
   const [pax, setPax] = useState(1);
   const [units, setUnits] = useState(1);
   const [calculatedDays, setCalculatedDays] = useState(1);
@@ -23,35 +33,40 @@ export default function TransfersPage() {
   const isVehicle = category === 'bike' || category === 'car';
 
   useEffect(() => {
-    if (dateStart && dateEnd) {
-      const start = startOfDay(parseISO(dateStart));
-      const end = startOfDay(parseISO(dateEnd));
+    if (formData.dateStart && formData.dateEnd) {
+      const start = startOfDay(parseISO(formData.dateStart));
+      const end = startOfDay(parseISO(formData.dateEnd));
       const diff = differenceInDays(end, start);
       setCalculatedDays(diff <= 0 ? 1 : diff);
     } else {
       setCalculatedDays(1);
     }
-  }, [dateStart, dateEnd]);
+  }, [formData.dateStart, formData.dateEnd]);
 
   const handleRecordBooking = async (itemName: string, pubRate: number) => {
-    if (!guestName || !dateStart) return alert("Please enter Guest Name and Start Date");
-    if (isVehicle && !dateEnd) return alert("Please select an End Date");
+    if (!formData.name || !formData.dateStart || !formData.contact) {
+        return alert("Please enter Name, Start Date, and Contact Number.");
+    }
+    if (isVehicle && !formData.dateEnd) return alert("Please select an End Date");
 
     setLoading(true);
     try {
       const multiplier = isVehicle ? (units * calculatedDays) : pax;
       const totalAmount = pubRate * multiplier;
       
-      // FIXED LOGIC: 500 for cars, 100 for others
       const commiPerUnit = category === 'car' ? 500 : 100;
       const totalMayadProfit = commiPerUnit * multiplier;
-      
-      // The agency/operator gets the rest (e.g., 2300 - 500 = 1800)
       const operatorPayout = totalAmount - totalMayadProfit;
 
       const { error } = await supabase.from('bookings').insert([{
-        guest_name: guestName.toUpperCase(),
-        trip_date: dateStart,
+        guest_name: formData.name.toUpperCase(),
+        age: parseInt(formData.age) || null,
+        gender: formData.gender,
+        nationality: formData.nationality.toUpperCase(),
+        country: formData.country.toUpperCase(),
+        contact_number: formData.contact,
+        hotel_name: formData.hotel.toUpperCase(),
+        trip_date: formData.dateStart,
         service_type: 'Logistics',
         sub_category: category.toUpperCase(),
         tour_name: itemName,
@@ -97,76 +112,125 @@ export default function TransfersPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white text-black min-h-screen font-sans">
+    <div className="max-w-7xl mx-auto p-6 bg-white text-black min-h-screen font-sans">
       <header className="mb-10 border-b-8 border-black pb-4">
-        <h1 className="text-7xl font-black italic tracking-tighter uppercase">Logistics</h1>
+        <h1 className="text-7xl font-black italic tracking-tighter uppercase text-black">Logistics</h1>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-slate-50 border-4 border-black p-6 shadow-[10px_10px_0px_0px_black]">
-        <div className="md:col-span-2 text-left">
-          <label className="text-[10px] font-black uppercase">Guest Name</label>
-          <input 
-            className="w-full p-3 border-2 border-black font-bold uppercase outline-none focus:bg-yellow-50"
-            value={guestName} onChange={(e) => setGuestName(e.target.value)}
-          />
-        </div>
+      {/* MANIFEST SECTION */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 border-4 border-black p-8 bg-slate-50 shadow-[10px_10px_0px_0px_black]">
         
-        <div className="md:col-span-2 text-left">
-          <label className="text-[10px] font-black uppercase">Agency / Partner (Optional)</label>
-          <select 
-            className="w-full p-3 border-2 border-black font-bold uppercase outline-none bg-white cursor-pointer"
-            value={agencyName}
-            onChange={(e) => setAgencyName(e.target.value)}
-          >
-            <option value="">DIRECT BOOKING</option>
-            {LOGISTICS_PARTNERS.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
+        {/* IDENTITY */}
+        <div className="space-y-4">
+            <h2 className="text-[10px] font-black uppercase bg-black text-white px-2 py-1 inline-block">01. Guest Identity</h2>
+            <input 
+                placeholder="FULL NAME *"
+                className="w-full p-2 border-b-4 border-black bg-transparent font-bold uppercase outline-none"
+                value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
+            <div className="grid grid-cols-2 gap-4">
+                <input 
+                    type="number" placeholder="AGE"
+                    className="w-full p-2 border-b-2 border-black bg-transparent font-bold outline-none"
+                    value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})}
+                />
+                <select 
+                    className="w-full p-2 border-b-2 border-black bg-transparent font-bold outline-none"
+                    value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                >
+                    <option value="MALE">MALE</option>
+                    <option value="FEMALE">FEMALE</option>
+                </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <input 
+                    placeholder="NATIONALITY"
+                    className="w-full p-2 border-b-2 border-black bg-transparent font-bold uppercase outline-none"
+                    value={formData.nationality} onChange={(e) => setFormData({...formData, nationality: e.target.value})}
+                />
+                <input 
+                    placeholder="COUNTRY"
+                    className="w-full p-2 border-b-2 border-black bg-transparent font-bold uppercase outline-none"
+                    value={formData.country} onChange={(e) => setFormData({...formData, country: e.target.value})}
+                />
+            </div>
         </div>
 
-        <div className="text-left">
-          <label className="text-[10px] font-black uppercase">{isVehicle ? 'Qty' : 'Pax'}</label>
-          <input 
-            type="number" min="1" className="w-full p-3 border-2 border-black font-black text-xl"
-            value={isVehicle ? units : pax}
-            onChange={(e) => isVehicle ? setUnits(Number(e.target.value)) : setPax(Number(e.target.value))}
-          />
-        </div>
-        
-        <div className={`${isVehicle ? "md:col-span-1" : "md:col-span-3"} text-left`}>
-          <label className="text-[10px] font-black uppercase">{isVehicle ? 'Start Date' : 'Trip Date'}</label>
-          <input 
-            type="date" className="w-full p-3 border-2 border-black font-bold"
-            value={dateStart} onChange={(e) => setDateStart(e.target.value)}
-          />
+        {/* CONTACT & STAY */}
+        <div className="space-y-4">
+            <h2 className="text-[10px] font-black uppercase bg-black text-white px-2 py-1 inline-block">02. Contact & Stay</h2>
+            <input 
+                placeholder="CONTACT NUMBER *"
+                className="w-full p-2 border-b-4 border-black bg-transparent font-bold outline-none"
+                value={formData.contact} onChange={(e) => setFormData({...formData, contact: e.target.value})}
+            />
+            <input 
+                placeholder="HOTEL NAME"
+                className="w-full p-2 border-b-2 border-black bg-transparent font-bold uppercase outline-none"
+                value={formData.hotel} onChange={(e) => setFormData({...formData, hotel: e.target.value})}
+            />
+            <select 
+                className="w-full p-2 border-b-2 border-black bg-white font-bold uppercase outline-none mt-2"
+                value={agencyName}
+                onChange={(e) => setAgencyName(e.target.value)}
+            >
+                <option value="">DIRECT BOOKING</option>
+                {LOGISTICS_PARTNERS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
         </div>
 
-        {isVehicle && (
-          <>
-            <div className="md:col-span-1 text-left">
-              <label className="text-[10px] font-black uppercase">End Date</label>
-              <input 
-                type="date" className="w-full p-3 border-2 border-black font-bold"
-                value={dateEnd} onChange={(e) => setDateEnd(e.target.value)}
-              />
+        {/* TRIP INFO */}
+        <div className="space-y-4">
+            <h2 className="text-[10px] font-black uppercase bg-black text-white px-2 py-1 inline-block">03. Schedule</h2>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="text-[8px] font-black block">START DATE *</label>
+                    <input 
+                        type="date" className="w-full p-2 border-b-2 border-black bg-transparent font-bold"
+                        value={formData.dateStart} onChange={(e) => setFormData({...formData, dateStart: e.target.value})}
+                    />
+                </div>
+                {isVehicle && (
+                    <div>
+                        <label className="text-[8px] font-black block">END DATE *</label>
+                        <input 
+                            type="date" className="w-full p-2 border-b-2 border-black bg-transparent font-bold"
+                            value={formData.dateEnd} onChange={(e) => setFormData({...formData, dateEnd: e.target.value})}
+                        />
+                    </div>
+                )}
             </div>
-            <div className="flex items-center justify-center bg-black text-white p-3">
-              <span className="text-xl font-black italic">{calculatedDays} DAYS</span>
+            <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                    <label className="text-[10px] font-black">{isVehicle ? 'UNITS' : 'PAX'}</label>
+                    <input 
+                        type="number" min="1" className="w-full p-2 border-b-2 border-black font-black text-xl bg-transparent"
+                        value={isVehicle ? units : pax}
+                        onChange={(e) => isVehicle ? setUnits(Number(e.target.value)) : setPax(Number(e.target.value))}
+                    />
+                </div>
+                {isVehicle && (
+                    <div className="bg-black text-white px-4 py-2 font-black italic">
+                        {calculatedDays} DAYS
+                    </div>
+                )}
             </div>
-          </>
-        )}
+        </div>
       </div>
 
+      {/* CATEGORY SELECTOR */}
       <div className="flex gap-2 mb-8">
         {['van', 'ferry', 'bike', 'car'].map((t) => (
           <button 
             key={t} onClick={() => setCategory(t as any)}
-            className={`flex-1 py-4 font-black uppercase border-4 border-black transition-all ${category === t ? 'bg-black text-white' : 'bg-white hover:bg-slate-100'}`}
+            className={`flex-1 py-4 font-black uppercase border-4 border-black transition-all ${category === t ? 'bg-black text-white shadow-[4px_4px_0px_0px_rgba(34,197,94,1)]' : 'bg-white hover:bg-slate-100'}`}
           >
             {t}s
           </button>
         ))}
       </div>
 
+      {/* RATES LIST */}
       <div className="space-y-4 mb-20">
         {category === 'van' && (
           <div className="border-4 border-black p-6 flex justify-between items-center bg-emerald-50">
