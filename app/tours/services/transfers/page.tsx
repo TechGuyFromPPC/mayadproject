@@ -1,261 +1,222 @@
 'use client'
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { TRANSFER_RENTAL_RATES } from '@/lib/booking-utils';
-import { useRouter } from 'next/navigation';
-import { differenceInDays, parseISO, startOfDay } from 'date-fns';
 
-const LOGISTICS_PARTNERS = ["PARTNER A", "PARTNER B", "PARTNER C"];
-
-export default function TransfersPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [category, setCategory] = useState<'van' | 'bike' | 'car' | 'ferry'>('van');
-  
-  // Manifest / Guest Details State
-  const [formData, setFormData] = useState({
-    name: '',
-    age: '',
-    gender: 'MALE',
-    nationality: '',
-    country: '',
-    contact: '',
-    hotel: '',
-    dateStart: '',
-    dateEnd: ''
-  });
-
-  const [agencyName, setAgencyName] = useState(''); 
-  const [pax, setPax] = useState(1);
-  const [units, setUnits] = useState(1);
-  const [calculatedDays, setCalculatedDays] = useState(1);
-
-  const isVehicle = category === 'bike' || category === 'car';
+export default function ManagementDashboard() {
+  const [allBookings, setAllBookings] = useState<any[]>([]);
+  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [serviceFilter, setServiceFilter] = useState('ALL');
 
   useEffect(() => {
-    if (formData.dateStart && formData.dateEnd) {
-      const start = startOfDay(parseISO(formData.dateStart));
-      const end = startOfDay(parseISO(formData.dateEnd));
-      const diff = differenceInDays(end, start);
-      setCalculatedDays(diff <= 0 ? 1 : diff);
+    fetchData();
+  }, []);
+
+  async function fetchData() {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .order('trip_date', { ascending: false });
+    
+    if (error) console.error(error);
+    if (data) setAllBookings(data);
+  }
+
+  const filteredData = allBookings.filter(b => {
+    const bookingDate = b.trip_date ? b.trip_date.split('T')[0] : "";
+    const matchesDate = bookingDate >= startDate && bookingDate <= endDate;
+    const dbService = b.service_type?.toUpperCase().trim() || "";
+    const selected = serviceFilter.toUpperCase();
+
+    let matchesService = false;
+    if (selected === 'ALL') {
+      matchesService = true;
+    } else if (selected === 'DAILY TOURS') {
+      matchesService = dbService.includes('DAILY TOUR');
+    } else if (selected === 'LOGISTICS') {
+      matchesService = dbService.includes('LOGISTICS');
     } else {
-      setCalculatedDays(1);
+      matchesService = dbService === selected;
     }
-  }, [formData.dateStart, formData.dateEnd]);
 
-  const handleRecordBooking = async (itemName: string, pubRate: number) => {
-    if (!formData.name || !formData.dateStart || !formData.contact) {
-        return alert("Please enter Name, Start Date, and Contact Number.");
-    }
-    if (isVehicle && !formData.dateEnd) return alert("Please select an End Date");
+    return matchesDate && matchesService;
+  });
 
-    setLoading(true);
-    try {
-      const multiplier = isVehicle ? (units * calculatedDays) : pax;
-      const totalAmount = pubRate * multiplier;
-      
-      const commiPerUnit = category === 'car' ? 500 : 100;
-      const totalMayadProfit = commiPerUnit * multiplier;
-      const operatorPayout = totalAmount - totalMayadProfit;
+  const totalPax = filteredData.reduce((sum, item) => sum + (Number(item.pax) || 0), 0);
 
-      const { error } = await supabase.from('bookings').insert([{
-        guest_name: formData.name.toUpperCase(),
-        age: parseInt(formData.age) || null,
-        gender: formData.gender,
-        nationality: formData.nationality.toUpperCase(),
-        country: formData.country.toUpperCase(),
-        contact_number: formData.contact,
-        hotel_name: formData.hotel.toUpperCase(),
-        trip_date: formData.dateStart,
-        service_type: 'Logistics',
-        sub_category: category.toUpperCase(),
-        tour_name: itemName,
-        pax: isVehicle ? units : pax,
-        total_collected: totalAmount,
-        mayad_profit: totalMayadProfit,
-        operator_payout: operatorPayout,
-        agency_partner: agencyName || 'DIRECT',
-        is_paid: false,
-        notes: isVehicle 
-          ? `${units} units x ${calculatedDays} days | Commi: ${commiPerUnit}/day` 
-          : `${pax} pax | Commi: ${commiPerUnit}/pax`
-      }]);
-
-      if (error) throw error;
-      alert(`Recorded! Mayad Profit: ₱${totalMayadProfit.toLocaleString()}`);
-      router.push('/reports');
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderRate = (model: string, pubRate: number) => {
-    const mult = isVehicle ? (units * calculatedDays) : pax;
-    const total = pubRate * mult;
-
-    return (
-      <div className="flex flex-col items-end">
-        <div className="text-right mb-2">
-          <span className="text-3xl font-black text-black">₱{total.toLocaleString()}</span>
-        </div>
-        <button 
-          onClick={() => handleRecordBooking(model, pubRate)}
-          disabled={loading}
-          className="bg-black text-white px-8 py-3 font-black uppercase hover:bg-emerald-500 shadow-[4px_4px_0px_0px_black] active:translate-y-1 transition-all"
-        >
-          {loading ? '...' : 'Confirm'}
-        </button>
-      </div>
-    );
+  const getServiceColor = (type: string) => {
+    const s = type?.toUpperCase() || "";
+    if (s.includes('LOGISTICS')) return 'bg-amber-400 text-black';
+    if (s.includes('DAILY TOUR')) return 'bg-sky-500 text-white';
+    if (s.includes('PRIVATE')) return 'bg-orange-500 text-white';
+    return 'bg-slate-200 text-slate-800';
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-white text-black min-h-screen font-sans">
-      <header className="mb-10 border-b-8 border-black pb-4">
-        <h1 className="text-7xl font-black italic tracking-tighter uppercase text-black">Logistics</h1>
+    <div className="p-4 md:p-8 bg-white min-h-screen text-black font-sans relative">
+      <style jsx global>{`
+        @media print {
+          @page { size: landscape; margin: 5mm; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          .hide-price-print { display: none !important; }
+          
+          /* Force table to use full width and show all guest info */
+          .printable-table { 
+            width: 100% !important; 
+            border: 2px solid black !important; 
+            table-layout: auto !important;
+          }
+          th, td { 
+            border: 1px solid black !important; 
+            padding: 8px !important; 
+            font-size: 10pt !important;
+          }
+          .guest-cell { width: 20%; font-weight: 900 !important; }
+          .contact-cell { width: 15%; }
+        }
+        .print-only { display: none; }
+      `}</style>
+
+      {/* --- MODAL (Quick View) --- */}
+      {selectedBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
+          <div className="bg-white border-[6px] border-black w-full max-w-2xl shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
+            <div className="bg-black text-white p-4 flex justify-between items-center">
+              <h3 className="font-black uppercase italic tracking-tighter text-xl">Booking Detail</h3>
+              <button onClick={() => setSelectedBooking(null)} className="text-2xl font-black hover:text-rose-500">✕</button>
+            </div>
+            <div className="p-6 grid grid-cols-2 gap-6">
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400">Guest</label>
+                <p className="text-lg font-black uppercase">{selectedBooking.guest_name}</p>
+                <p className="text-blue-600 font-bold">{selectedBooking.contact_number}</p>
+              </div>
+              <div className="text-right">
+                <label className="text-[10px] font-black uppercase text-slate-400">Status</label>
+                <p className="font-black text-emerald-600 uppercase italic">Confirmed</p>
+              </div>
+            </div>
+            <div className="bg-slate-50 p-4 border-t-4 border-black flex justify-end">
+              <button onClick={() => setSelectedBooking(null)} className="px-6 py-2 border-2 border-black font-black uppercase text-xs">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- PRINT HEADER --- */}
+      <div className="print-only mb-6 border-b-[4px] border-black pb-2">
+        <div className="flex justify-between items-end">
+          <div>
+            <h1 className="text-4xl font-black uppercase italic tracking-tighter">MAYAD EL NIDO</h1>
+            <p className="text-sm font-black text-emerald-700 uppercase tracking-widest">Daily Dispatch Manifest</p>
+          </div>
+          <div className="text-right font-black uppercase text-xl bg-black text-white px-4 py-1">
+            {startDate === endDate ? startDate : `${startDate} >> ${endDate}`}
+          </div>
+        </div>
+      </div>
+
+      <header className="no-print mb-8">
+        <div className="flex justify-between items-center border-b-8 border-black pb-4 mb-6">
+          <h2 className="text-4xl font-black uppercase italic tracking-tighter text-blue-600">Booking Audit</h2>
+          <button onClick={() => window.print()} className="bg-emerald-500 border-4 border-black px-8 py-3 font-black uppercase shadow-[4px_4px_0px_0px_black] active:shadow-none transition-all hover:-translate-y-1">
+            🖨️ Print Manifest
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-6 bg-slate-50 p-6 border-4 border-black shadow-[8px_8px_0px_0px_#cbd5e1]">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase mb-1 text-emerald-600">Start Date</span>
+            <input type="date" className="border-2 border-black p-2 font-black" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase mb-1 text-emerald-600">End Date</span>
+            <input type="date" className="border-2 border-black p-2 font-black" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase mb-1 text-emerald-600">Service</span>
+            <select className="border-2 border-black p-2 font-black bg-white uppercase" value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)}>
+              <option value="ALL">ALL SERVICES</option>
+              <option value="DAILY TOURS">DAILY TOURS</option>
+              <option value="LOGISTICS">LOGISTICS</option>
+              <option value="PRIVATE">PRIVATE</option>
+            </select>
+          </div>
+        </div>
       </header>
 
-      {/* MANIFEST SECTION */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 border-4 border-black p-8 bg-slate-50 shadow-[10px_10px_0px_0px_black]">
-        
-        {/* IDENTITY */}
-        <div className="space-y-4">
-            <h2 className="text-[10px] font-black uppercase bg-black text-white px-2 py-1 inline-block">01. Guest Identity</h2>
-            <input 
-                placeholder="FULL NAME *"
-                className="w-full p-2 border-b-4 border-black bg-transparent font-bold uppercase outline-none"
-                value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})}
-            />
-            <div className="grid grid-cols-2 gap-4">
-                <input 
-                    type="number" placeholder="AGE"
-                    className="w-full p-2 border-b-2 border-black bg-transparent font-bold outline-none"
-                    value={formData.age} onChange={(e) => setFormData({...formData, age: e.target.value})}
-                />
-                <select 
-                    className="w-full p-2 border-b-2 border-black bg-transparent font-bold outline-none"
-                    value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                >
-                    <option value="MALE">MALE</option>
-                    <option value="FEMALE">FEMALE</option>
-                </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <input 
-                    placeholder="NATIONALITY"
-                    className="w-full p-2 border-b-2 border-black bg-transparent font-bold uppercase outline-none"
-                    value={formData.nationality} onChange={(e) => setFormData({...formData, nationality: e.target.value})}
-                />
-                <input 
-                    placeholder="COUNTRY"
-                    className="w-full p-2 border-b-2 border-black bg-transparent font-bold uppercase outline-none"
-                    value={formData.country} onChange={(e) => setFormData({...formData, country: e.target.value})}
-                />
-            </div>
-        </div>
-
-        {/* CONTACT & STAY */}
-        <div className="space-y-4">
-            <h2 className="text-[10px] font-black uppercase bg-black text-white px-2 py-1 inline-block">02. Contact & Stay</h2>
-            <input 
-                placeholder="CONTACT NUMBER *"
-                className="w-full p-2 border-b-4 border-black bg-transparent font-bold outline-none"
-                value={formData.contact} onChange={(e) => setFormData({...formData, contact: e.target.value})}
-            />
-            <input 
-                placeholder="HOTEL NAME"
-                className="w-full p-2 border-b-2 border-black bg-transparent font-bold uppercase outline-none"
-                value={formData.hotel} onChange={(e) => setFormData({...formData, hotel: e.target.value})}
-            />
-            <select 
-                className="w-full p-2 border-b-2 border-black bg-white font-bold uppercase outline-none mt-2"
-                value={agencyName}
-                onChange={(e) => setAgencyName(e.target.value)}
-            >
-                <option value="">DIRECT BOOKING</option>
-                {LOGISTICS_PARTNERS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-        </div>
-
-        {/* TRIP INFO */}
-        <div className="space-y-4">
-            <h2 className="text-[10px] font-black uppercase bg-black text-white px-2 py-1 inline-block">03. Schedule</h2>
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="text-[8px] font-black block">START DATE *</label>
-                    <input 
-                        type="date" className="w-full p-2 border-b-2 border-black bg-transparent font-bold"
-                        value={formData.dateStart} onChange={(e) => setFormData({...formData, dateStart: e.target.value})}
-                    />
-                </div>
-                {isVehicle && (
-                    <div>
-                        <label className="text-[8px] font-black block">END DATE *</label>
-                        <input 
-                            type="date" className="w-full p-2 border-b-2 border-black bg-transparent font-bold"
-                            value={formData.dateEnd} onChange={(e) => setFormData({...formData, dateEnd: e.target.value})}
-                        />
-                    </div>
-                )}
-            </div>
-            <div className="flex gap-4 items-end">
-                <div className="flex-1">
-                    <label className="text-[10px] font-black">{isVehicle ? 'UNITS' : 'PAX'}</label>
-                    <input 
-                        type="number" min="1" className="w-full p-2 border-b-2 border-black font-black text-xl bg-transparent"
-                        value={isVehicle ? units : pax}
-                        onChange={(e) => isVehicle ? setUnits(Number(e.target.value)) : setPax(Number(e.target.value))}
-                    />
-                </div>
-                {isVehicle && (
-                    <div className="bg-black text-white px-4 py-2 font-black italic">
-                        {calculatedDays} DAYS
-                    </div>
-                )}
-            </div>
-        </div>
+      {/* --- TABLE --- */}
+      <div className="overflow-x-auto border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] no-print">
+        <table className="w-full text-[11px] font-bold uppercase">
+          <thead className="bg-black text-white text-left italic">
+            <tr>
+              <th className="p-3">Guest Name</th>
+              <th className="p-3">Contact</th>
+              <th className="p-3 text-center">Pax</th>
+              <th className="p-3">Hotel / Pickup</th>
+              <th className="p-3">Service</th>
+              <th className="p-3 bg-rose-900/50">Dietary</th>
+              <th className="p-3 text-right">Collected</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((item) => (
+              <tr key={item.id} onClick={() => setSelectedBooking(item)} className="border-b-2 border-black hover:bg-yellow-50 cursor-pointer">
+                <td className="p-3 font-black text-sm">{item.guest_name}</td>
+                <td className="p-3 text-blue-700">{item.contact_number || '---'}</td>
+                <td className="p-3 text-center text-xl font-black">{item.pax || '0'}</td>
+                <td className="p-3 italic">{item.hotel_name || '---'}</td>
+                <td className="p-3">
+                  <span className={`px-2 py-1 font-black text-[9px] ${getServiceColor(item.service_type)}`}>
+                    {item.service_type}
+                  </span>
+                </td>
+                <td className="p-3 text-rose-700 bg-rose-50/30">{item.dietary_restrictions || 'NONE'}</td>
+                <td className="p-3 text-right font-black">₱{item.total_collected?.toLocaleString()}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-100 border-t-4 border-black font-black">
+              <td colSpan={2} className="p-3 text-right text-base italic uppercase">Total Operational Pax:</td>
+              <td className="p-3 text-center text-3xl bg-yellow-300 border-x-4 border-black">{totalPax}</td>
+              <td colSpan={4} className="p-3"></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      {/* CATEGORY SELECTOR */}
-      <div className="flex gap-2 mb-8">
-        {['van', 'ferry', 'bike', 'car'].map((t) => (
-          <button 
-            key={t} onClick={() => setCategory(t as any)}
-            className={`flex-1 py-4 font-black uppercase border-4 border-black transition-all ${category === t ? 'bg-black text-white shadow-[4px_4px_0px_0px_rgba(34,197,94,1)]' : 'bg-white hover:bg-slate-100'}`}
-          >
-            {t}s
-          </button>
-        ))}
-      </div>
-
-      {/* RATES LIST */}
-      <div className="space-y-4 mb-20">
-        {category === 'van' && (
-          <div className="border-4 border-black p-6 flex justify-between items-center bg-emerald-50">
-            <h3 className="text-3xl font-black uppercase italic">Shared Van</h3>
-            {renderRate("Shared Van", TRANSFER_RENTAL_RATES.van.published)}
-          </div>
-        )}
-        {category === 'bike' && Object.entries(TRANSFER_RENTAL_RATES.bikes).map(([model, rates]) => (
-          <div key={model} className="border-4 border-black p-6 flex justify-between items-center bg-yellow-50">
-            <h3 className="text-3xl font-black uppercase italic">{model}</h3>
-            {renderRate(model, rates.pub)}
-          </div>
-        ))}
-        {category === 'car' && Object.entries(TRANSFER_RENTAL_RATES.cars).filter(([k]) => k !== 'deposit').map(([model, rates]: any) => (
-          <div key={model} className="border-4 border-black p-6 flex justify-between items-center bg-blue-50">
-            <h3 className="text-3xl font-black uppercase italic">{model}</h3>
-            {renderRate(model, rates.pub)}
-          </div>
-        ))}
-        {category === 'ferry' && (
-          <div className="border-4 border-black p-6 flex justify-between items-center bg-purple-50">
-            <h3 className="text-3xl font-black uppercase italic">Fast Ferry</h3>
-            {renderRate("Fast Ferry", TRANSFER_RENTAL_RATES.ferry.published)}
-          </div>
-        )}
+      {/* --- PRINT-ONLY VERSION OF TABLE (EXCLUDES COLLECTED) --- */}
+      <div className="print-only">
+        <table className="printable-table w-full uppercase">
+          <thead className="bg-slate-200">
+            <tr>
+              <th className="guest-cell">Guest Name</th>
+              <th className="contact-cell">Contact</th>
+              <th className="text-center">Pax</th>
+              <th>Hotel / Pickup</th>
+              <th>Service Type</th>
+              <th>Dietary Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((item) => (
+              <tr key={item.id}>
+                <td className="font-black">{item.guest_name}</td>
+                <td className="text-[10px]">{item.contact_number || 'N/A'}</td>
+                <td className="text-center font-black text-lg">{item.pax}</td>
+                <td className="italic text-[10px]">{item.hotel_name || '---'}</td>
+                <td>{item.service_type}</td>
+                <td className="font-bold text-rose-800">{item.dietary_restrictions || 'NONE'}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-100">
+              <td colSpan={2} className="text-right font-black uppercase italic">Total Manifest Pax:</td>
+              <td className="text-center font-black text-2xl">{totalPax}</td>
+              <td colSpan={3}></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
