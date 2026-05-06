@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-// Define the valid service types to fix the TypeScript error 2367
 type ServiceCategory = 'ALL' | 'DAILY TOURS' | 'PRIVATE' | 'LOGISTICS' | 'EXPEDITIONS';
 
 export default function ManagementDashboard() {
@@ -27,7 +26,6 @@ export default function ManagementDashboard() {
     if (data) setAllBookings(data);
   }
 
-  // Determine if specific tour selection is relevant based on the category
   const isTourService = serviceFilter === 'DAILY TOURS' || serviceFilter === 'PRIVATE' || serviceFilter === 'ALL';
 
   const filteredData = allBookings.filter(b => {
@@ -76,7 +74,7 @@ export default function ManagementDashboard() {
         .print-only { display: none; }
       `}</style>
 
-      {/* --- PRINT HEADER (Manifest Style) --- */}
+      {/* --- PRINT HEADER --- */}
       <div className="print-only mb-6 border-b-4 border-black pb-4">
         <div className="flex justify-between items-end">
           <div>
@@ -87,24 +85,23 @@ export default function ManagementDashboard() {
           </div>
           <div className="text-right font-bold">
             <p className="text-2xl">{startDate === endDate ? startDate : `${startDate} >> ${endDate}`}</p>
-            <p className="bg-black text-white px-2 py-1 inline-block">TOTAL PAX: {totalPax}</p>
+            <p className="bg-black text-white px-4 py-1 inline-block">TOTAL PAX: {totalPax}</p>
           </div>
         </div>
       </div>
 
       <header className="no-print mb-8">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-4xl font-black uppercase italic tracking-tighter text-blue-600">Booking Audit</h2>
+          <h2 className="text-4xl font-black uppercase italic tracking-tighter text-blue-600">Guest Manifest</h2>
           <button 
             onClick={() => window.print()} 
             className="bg-emerald-500 border-4 border-black px-6 py-2 font-black uppercase shadow-[4px_4px_0px_0px_black] hover:-translate-y-1 active:shadow-none transition-all"
           >
-            🖨️ Print Landscape Manifest
+            🖨️ Print Manifest
           </button>
         </div>
 
         <div className="flex flex-wrap gap-4 bg-slate-50 p-6 border-4 border-black shadow-[8px_8px_0px_0px_#cbd5e1]">
-          {/* Date Controls */}
           <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase mb-1 text-emerald-600">Start Date</span>
             <input type="date" className="border-2 border-black p-2 font-black" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -114,7 +111,6 @@ export default function ManagementDashboard() {
             <input type="date" className="border-2 border-black p-2 font-black" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
 
-          {/* Service Category */}
           <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase mb-1 text-emerald-600">Service Category</span>
             <select 
@@ -134,7 +130,6 @@ export default function ManagementDashboard() {
             </select>
           </div>
 
-          {/* Specific Tour - Automatically Disables */}
           <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase mb-1 text-blue-600">Specific Tour</span>
             <select 
@@ -150,21 +145,26 @@ export default function ManagementDashboard() {
               <option value="D">TOUR D</option>
             </select>
           </div>
+          
+          <div className="flex-1 flex justify-end items-end">
+             <div className="bg-yellow-300 border-4 border-black px-6 py-2">
+                <span className="text-[10px] font-black uppercase block leading-none">Manifest Pax</span>
+                <span className="text-3xl font-black">{totalPax}</span>
+             </div>
+          </div>
         </div>
       </header>
 
-      {/* --- TABLE (Displays tour_name directly) --- */}
       <div className="overflow-x-auto border-4 border-black shadow-[8px_8px_0px_0px_black]">
         <table className="w-full text-[11px] font-bold uppercase">
           <thead className="bg-black text-white text-left italic">
             <tr>
               <th className="p-3">Guest Name</th>
-              <th className="p-3">Contact</th>
+              <th className="p-3">Contact Number</th>
               <th className="p-3 text-center">Pax</th>
               <th className="p-3 text-center">Tour Variant</th>
               <th className="p-3">Hotel / Pickup</th>
               <th className="p-3">Notes / Dietary</th>
-              <th className="p-3 text-right no-print">Collected</th>
             </tr>
           </thead>
           <tbody>
@@ -172,7 +172,7 @@ export default function ManagementDashboard() {
               <tr 
                 key={item.id} 
                 onClick={() => setSelectedBooking(item)} 
-                className="border-b-2 border-black hover:bg-yellow-50 cursor-pointer transition-colors"
+                className="border-b-2 border-black hover:bg-slate-50 cursor-pointer transition-colors"
               >
                 <td className="p-3 font-black text-sm">{item.guest_name}</td>
                 <td className="p-3 text-blue-700">{item.contact_number || '---'}</td>
@@ -183,17 +183,15 @@ export default function ManagementDashboard() {
                   </span>
                 </td>
                 <td className="p-3 italic">{item.hotel_name || '---'}</td>
-                <td className="p-3 text-rose-700 font-bold">{item.dietary_restrictions || item.notes || 'NONE'}</td>
-                <td className="p-3 text-right font-black no-print">₱{item.total_collected?.toLocaleString()}</td>
+                <td className="p-3 text-rose-700 font-bold">{item.notes || 'NONE'}</td>
               </tr>
             ))}
             <tr className="bg-slate-100 border-t-4 border-black font-black">
-              <td colSpan={2} className="p-3 text-right italic">Total Manifest Pax:</td>
+              <td colSpan={2} className="p-3 text-right italic uppercase">Total Manifest Pax:</td>
               <td className="p-3 text-center text-2xl bg-yellow-300 border-x-4 border-black">{totalPax}</td>
-              <td colSpan={3} className="p-3 italic text-slate-400 text-[10px]">
-                {serviceFilter} Manifest Generated
+              <td colSpan={3} className="p-3 text-slate-400 text-[10px] italic">
+                * Operational manifest only. Financial records are stored in Settlements.
               </td>
-              <td className="no-print"></td>
             </tr>
           </tbody>
         </table>
@@ -204,7 +202,7 @@ export default function ManagementDashboard() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print">
           <div className="bg-white border-[6px] border-black w-full max-w-2xl shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
             <div className="bg-black text-white p-4 flex justify-between items-center">
-              <h3 className="font-black uppercase italic tracking-tighter text-xl">Audit Detail</h3>
+              <h3 className="font-black uppercase italic tracking-tighter text-xl">Guest Detail</h3>
               <button onClick={() => setSelectedBooking(null)} className="text-2xl font-black hover:text-rose-500">✕</button>
             </div>
             <div className="p-6 grid grid-cols-2 gap-6">
@@ -214,16 +212,22 @@ export default function ManagementDashboard() {
                 <p className="text-blue-600 font-bold">{selectedBooking.contact_number}</p>
               </div>
               <div className="text-right">
-                <label className="text-[10px] font-black uppercase text-slate-400">Tour</label>
-                <p className="text-3xl font-black text-blue-600 uppercase">TOUR {selectedBooking.tour_name || 'N/A'}</p>
+                <label className="text-[10px] font-black uppercase text-slate-400">Tour Variant</label>
+                <p className="text-3xl font-black text-blue-600 uppercase">{selectedBooking.tour_name || 'N/A'}</p>
               </div>
+              
               <div className="col-span-2 border-t-2 border-slate-100 pt-4">
-                <label className="text-[10px] font-black uppercase text-slate-400">Service Category</label>
-                <p className="font-black uppercase">{selectedBooking.service_type}</p>
+                <label className="text-[10px] font-black uppercase text-slate-400">Hotel / Pickup Point</label>
+                <p className="font-black uppercase">{selectedBooking.hotel_name || 'NOT SPECIFIED'}</p>
+              </div>
+
+              <div className="col-span-2 border-t-2 border-slate-100 pt-4">
+                <label className="text-[10px] font-black uppercase text-slate-400">Special Notes</label>
+                <p className="font-bold text-rose-600 uppercase italic">{selectedBooking.notes || 'NO SPECIAL REQUESTS'}</p>
               </div>
             </div>
             <div className="bg-slate-50 p-4 border-t-4 border-black flex justify-end">
-              <button onClick={() => setSelectedBooking(null)} className="px-6 py-2 border-2 border-black font-black uppercase text-xs hover:bg-black hover:text-white transition-colors">Close Audit</button>
+              <button onClick={() => setSelectedBooking(null)} className="px-6 py-2 border-2 border-black font-black uppercase text-xs hover:bg-black hover:text-white transition-colors">Close</button>
             </div>
           </div>
         </div>

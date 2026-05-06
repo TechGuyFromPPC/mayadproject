@@ -2,19 +2,23 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+// UPDATED: Base prices now include the +400 ETDF by default
+// Tour A/D: 1500 (Base) + 200 (Lagoon) + 400 (ETDF) = 2100
+// Tour B: 1600 (Base) + 400 (ETDF) = 2000
+// Tour C: 1700 (Base) + 400 (ETDF) = 2100
 const TOUR_DATA = {
-  'Tour A': { price: 1500, hasLagoon: true },
-  'Tour B': { price: 1600, hasLagoon: false },
-  'Tour C': { price: 1700, hasLagoon: false },
-  'Tour D': { price: 1500, hasLagoon: true },
+  'Tour A': { price: 2100, hasLagoon: true },
+  'Tour B': { price: 2000, hasLagoon: false },
+  'Tour C': { price: 2100, hasLagoon: false },
+  'Tour D': { price: 2100, hasLagoon: true },
 };
 
 const PARTNERS = ["PARTNER A", "PARTNER B", "PARTNER C"];
 
 export default function BookingPage() {
   const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false); // Combined Modal State
-  const [isSuccess, setIsSuccess] = useState(false); // Success Toggle
+  const [showModal, setShowModal] = useState(false); 
+  const [isSuccess, setIsSuccess] = useState(false); 
   const [generatedId, setGeneratedId] = useState<string | null>(null);  
   
   const [formData, setFormData] = useState({
@@ -26,11 +30,16 @@ export default function BookingPage() {
   const tourInfo = TOUR_DATA[formData.tour as keyof typeof TOUR_DATA];
   const isDirect = formData.partner === 'DIRECT';
   
-  const basePrice = tourInfo.price;
+  // LOGIC UPDATE:
+  // We start with the 'New Total' (which includes ETDF).
+  // If they HAVE the ETDF card, we deduct 400.
+  const newTotalWithEtdf = tourInfo.price;
   const etdfDeduction = formData.hasETDF ? 400 : 0;
-  const finalUnitPrice = basePrice - etdfDeduction;
+  const finalUnitPrice = newTotalWithEtdf - etdfDeduction;
+  
   const totalCollected = finalUnitPrice * formData.pax;
 
+  // Profit remains calculated on the adjusted totals
   const totalMayadProfit = isDirect ? (400 * formData.pax) : (100 * formData.pax);
   const totalPartnerCommission = isDirect ? 0 : (300 * formData.pax);
 
@@ -83,7 +92,8 @@ export default function BookingPage() {
             <h1 className="text-6xl font-black uppercase tracking-tighter italic leading-none">Tour Booking</h1>
             <div className="text-right">
                 <p className="text-[10px] font-black uppercase">Unit Price</p>
-                <p className="text-3xl font-black">₱{finalUnitPrice}</p>
+                <p className="text-3xl font-black">₱{finalUnitPrice.toLocaleString()}</p>
+                {formData.hasETDF && <p className="text-[10px] text-emerald-600 font-bold">-₱400 ETDF DISC.</p>}
             </div>
           </header>
 
@@ -100,12 +110,16 @@ export default function BookingPage() {
                   value={formData.hotel} onChange={e => setFormData({...formData, hotel: e.target.value})} />
               </div>
 
+              {/* ETDF TOGGLE: Now clearly shows the discount if they have the card */}
               <div 
                 onClick={() => setFormData({...formData, hasETDF: !formData.hasETDF})}
-                className={`p-4 border-4 border-black cursor-pointer transition-all flex justify-between items-center ${formData.hasETDF ? 'bg-yellow-400' : 'bg-white/50'}`}
+                className={`p-4 border-4 border-black cursor-pointer transition-all flex justify-between items-center ${formData.hasETDF ? 'bg-emerald-400' : 'bg-white/50'}`}
               >
-                <span className="font-black uppercase text-sm italic">ETDF Exemption Card?</span>
-                <span className="font-black underline">{formData.hasETDF ? 'YES (-₱400)' : 'NO'}</span>
+                <div className="flex flex-col">
+                    <span className="font-black uppercase text-sm italic">Has ETDF Card?</span>
+                    <span className="text-[10px] font-bold">Deduct ₱400 from total</span>
+                </div>
+                <span className="font-black underline text-xl">{formData.hasETDF ? 'YES' : 'NO'}</span>
               </div>
             </div>
 
@@ -169,6 +183,7 @@ export default function BookingPage() {
                   <div>
                     <p className="text-[10px] font-black text-slate-400">Total Collected</p>
                     <p className="text-2xl font-black text-emerald-600">₱{totalCollected.toLocaleString()}</p>
+                    {formData.hasETDF && <p className="text-[9px] text-emerald-700 italic">* ETDF Deducted</p>}
                   </div>
                 </div>
 
