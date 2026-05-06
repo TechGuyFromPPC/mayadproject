@@ -7,12 +7,12 @@ import Image from 'next/image'
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Helper to check if we are in the services sub-directory
-  const isServices = pathname.includes('/tours/services');
-
   return (
     <html lang="en">
-      <body className="relative min-h-screen font-sans overflow-x-hidden">
+      <body 
+        className="relative min-h-screen font-sans overflow-x-hidden" 
+        suppressHydrationWarning={true}
+      >
         {/* BLURRED BACKGROUND IMAGE */}
         <div className="fixed inset-0 -z-10 overflow-hidden">
           <Image
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
              </span>
           </div>
 
-          <div className="flex h-full border-l-4 border-black overflow-x-auto">
+          <div className="flex h-full border-l-4 border-black overflow-x-auto no-print">
             <Link 
               href="/" 
               className={`h-full flex items-center px-6 text-[10px] font-black uppercase tracking-widest transition-all
@@ -69,12 +69,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Expeditions
             </Link>
 
+            {/* UPDATED: Matches app/reports/page.tsx */}
             <Link 
               href="/reports" 
               className={`h-full flex items-center px-6 text-[10px] font-black uppercase tracking-widest transition-all border-l-4 border-black
                 ${pathname === '/reports' ? 'bg-emerald-500 text-white' : 'text-black hover:bg-black/5'}`}
             >
-              Sales History
+              History
+            </Link>
+
+            {/* UPDATED: Matches app/reports/settlements/page.tsx */}
+            <Link 
+              href="/reports/settlements" 
+              className={`h-full flex items-center px-6 text-[10px] font-black uppercase tracking-widest transition-all border-l-4 border-black
+                ${pathname.includes('settlements') ? 'bg-amber-500 text-white' : 'text-black hover:bg-black/5'}`}
+            >
+              Settlements
             </Link>
           </div>
         </nav>
